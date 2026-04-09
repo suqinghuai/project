@@ -49,18 +49,42 @@ def convert_md_format(input_file, output_file):
         with open(input_file, 'r', encoding='utf-8') as f:
             content = f.read()
         
-        # 按日期行分割段落
         lines = content.split('\n')
         
         converted_lines = []
         current_paragraph = []
+        processed_count = 0
+        skipped_count = 0
         
-        for line in lines:
-            # 检查是否是新的日期行（开始新的段落）
-            if re.search(r'\d{4}年\d{1,2}月\d{1,2}日.*第\d+页', line):
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            
+            # 检查是否是已转换的格式（以> [!NOTE]开头）
+            if line.strip().startswith('> [!NOTE]'):
+                # 跳过已转换的内容，直接添加到结果中
+                converted_lines.append(line)
+                
+                # 添加后续的>开头的行
+                j = i + 1
+                while j < len(lines) and lines[j].strip().startswith('>'):
+                    converted_lines.append(lines[j])
+                    j += 1
+                
+                # 添加空行分隔
+                converted_lines.append('')
+                
+                # 更新索引
+                i = j
+                skipped_count += 1
+                continue
+            
+            # 检查是否是原始格式的日期行（开始新的段落）
+            elif re.search(r'\d{4}年\d{1,2}月\d{1,2}日.*第\d+页', line):
                 # 处理上一个段落
                 if current_paragraph:
                     process_paragraph(current_paragraph, converted_lines)
+                    processed_count += 1
                     current_paragraph = []
                 
                 # 添加新的日期行
@@ -68,16 +92,20 @@ def convert_md_format(input_file, output_file):
             else:
                 # 添加内容行到当前段落
                 current_paragraph.append(line)
+            
+            i += 1
         
         # 处理最后一个段落
         if current_paragraph:
             process_paragraph(current_paragraph, converted_lines)
+            processed_count += 1
         
         # 写入输出文件
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write('\n'.join(converted_lines))
             
         print(f"转换完成: {input_file} -> {output_file}")
+        print(f"处理统计: 成功处理 {processed_count} 个段落，跳过 {skipped_count} 个已转换段落")
         return True
         
     except Exception as e:
